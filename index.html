@@ -1,0 +1,231 @@
+<html>
+<head>
+<style>
+
+body {
+    padding: 0;
+    margin: 0;
+    background: #002129;
+}
+
+.user_container {
+    display: inline-block;
+    vertical-align: top;
+    width: 260px;
+}
+
+.user_header {
+    padding: 5px;
+    height: 30px;
+}
+
+.username {
+    vertical-align: middle;
+    font-size: 25px;
+    text-decoration: none;
+    vertical-align: middle;
+    display: inline-block;
+    color: #268BD2;
+    font-family: sans-serif;
+}
+
+.username:hover {
+    text-decoration: underline;
+}
+
+.live_marker {
+    vertical-align: middle;
+    margin-right: 10px;
+    background: #002200;
+    border: 1px solid #003300;
+    box-shadow: none;
+    color: #003300;
+    padding: 2px 5px;
+    vertical-align: middle;
+    border-radius: 5px;
+    font-family: consolas, sans-serif;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.live_marker.live {
+    background: #ccffcc;
+    border: 1px solid #bbffbb;
+    box-shadow: 0px 0px 10px 1px #44ee44;
+    color: green;
+}
+
+.broadcast_container {
+    display: block;
+    padding: 5px 10px;
+    white-space: nowrap;
+    color: #657B83;
+}
+
+.broadcast_container:hover {
+    background: #073642;
+}
+
+.broadcast_container img {
+    display: inline-block;
+    vertical-align: middle;
+    width: 50px;
+    height: 38px;
+    margin-right: 5px;
+}
+
+.broadcast_details_container {
+    display: inline-block;
+    vertical-align: middle;
+    overflow: hidden;
+    width: 200px;
+}
+
+.broadcast_title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.broadcast_timestamp {
+    color: #B58910;
+    font-weight: bold;
+}
+
+</style>
+</head>
+<body>
+<script type="text/javascript">
+
+var twitchUsers = [
+    "handmade_hero",
+    "naysayer88",
+    "abnercoimbre",
+    "mr4thdimention",
+    "cmuratori",
+    "nothings2",
+    "garlandobloom"
+];
+
+var userContainers = [];
+
+function addUser(username) {
+    var container = document.createElement("DIV");
+    var header = document.createElement("DIV");
+    var nameContainer = document.createElement("a");
+    var liveMarker = document.createElement("DIV");
+    var contentContainer = document.createElement("DIV");
+
+    container.classList.add("user_container");
+    header.classList.add("user_header");
+    nameContainer.classList.add("username");
+    liveMarker.classList.add("live_marker");
+    contentContainer.classList.add("content_container");
+
+    nameContainer.textContent = username;
+    liveMarker.textContent = "LIVE";
+
+    header.appendChild(liveMarker);
+    header.appendChild(nameContainer);
+    container.appendChild(header);
+    container.appendChild(contentContainer);
+
+    return container;
+}
+
+function setLive(username, isLive) {
+    var liveMarker = userContainers[username].querySelector(".live_marker");
+    var nameContainer = userContainers[username].querySelector(".username");
+    if (isLive) {
+        liveMarker.classList.add("live");
+        nameContainer.setAttribute("href", "https://twitch.tv/" + username);
+    } else {
+        liveMarker.classList.remove("live");
+        nameContainer.setAttribute("href", "https://twitch.tv/" + username  + "/past_broadcasts");
+    }
+}
+
+function checkLive(username) {
+    var scriptTag = document.createElement("SCRIPT");
+    scriptTag.setAttribute("type", "text/javascript");
+    var callbackName = "___callback_checkLive_" + username;
+    window[callbackName] = function(apiResult) {
+        setLive(username, apiResult.stream != null);
+    }
+    scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/streams/" + username + "?callback=" + callbackName);
+    document.body.appendChild(scriptTag);
+}
+
+function setBroadcasts(username, broadcasts) {
+    // NOTE(asaf): broadcasts are: [{ title, url, image, timestamp }, ...]
+    var contentContainer = userContainers[username].querySelector(".content_container");
+    contentContainer.innerHTML = "";
+
+    for (var i = 0; i < broadcasts.length; ++i) {
+        var broadcast = broadcasts[i];
+        var broadcastContainer = document.createElement("A");
+        var image = document.createElement("IMG");
+        var detailsContainer = document.createElement("DIV");
+        var title = document.createElement("DIV");
+        var timestamp = document.createElement("DIV");
+
+        broadcastContainer.classList.add("broadcast_container");
+        detailsContainer.classList.add("broadcast_details_container");
+        title.classList.add("broadcast_title");
+        timestamp.classList.add("broadcast_timestamp");
+
+        broadcastContainer.setAttribute("href", broadcast.url);
+        image.setAttribute("src", broadcast.image);
+        title.setAttribute("title", broadcast.title);
+        timestamp.setAttribute("title", broadcast.timestamp);
+
+        title.textContent = broadcast.title;
+        timestamp.textContent = new Date(broadcast.timestamp).toLocaleFormat();
+
+        detailsContainer.appendChild(timestamp);
+        detailsContainer.appendChild(title);
+        broadcastContainer.appendChild(image);
+        broadcastContainer.appendChild(detailsContainer);
+
+        contentContainer.appendChild(broadcastContainer);
+    }
+}
+
+function updateBroadcasts(username) {
+    var scriptTag = document.createElement("SCRIPT");
+    scriptTag.setAttribute("type", "text/javascript");
+    var callbackName = "___callback_updateBroadcasts_" + username;
+    window[callbackName] = function(apiResult) {
+        var broadcasts = [];
+        for (var i = 0; i < apiResult.videos.length; ++i) {
+            var video = apiResult.videos[i]
+            broadcasts.push({
+                title: video.title,
+                timestamp: video.recorded_at,
+                image: video.preview,
+                url: video.url
+            });
+        }
+        setBroadcasts(username, broadcasts);
+    }
+    scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/channels/" + username + "/videos?limit=8&broadcasts=true&callback=" + callbackName);
+    document.body.appendChild(scriptTag);
+}
+
+function refreshUser(username) {
+    checkLive(username);
+    updateBroadcasts(username);
+}
+
+for (var i = 0; i < twitchUsers.length; ++i) {
+    var username = twitchUsers[i];
+    var userContainer = addUser(username);
+    userContainers[username] = userContainer;
+    document.body.appendChild(userContainer);
+    setLive(username, false);
+    refreshUser(username);
+}
+
+</script>
+</body>
+</html>
