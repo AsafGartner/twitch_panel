@@ -103,8 +103,12 @@ var twitchUsers = [
     "abnercoimbre",
     "mr4thdimention",
     "cmuratori",
-    "nothings2"
+    "nothings2",
+    "sssmcgrath"
 ];
+var maxPastBroadcasts = 8;
+var liveUpdateInterval = 60000; // set to 0 to disable automatic updates
+var broadcastsUpdateInterval = 7200000; // set to 0 to disable automatic updates
 
 var userContainers = [];
 
@@ -233,7 +237,7 @@ function updateBroadcasts(username) {
         }
         setBroadcasts(username, broadcasts);
     }
-    scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/channels/" + username + "/videos?limit=8&broadcasts=true&callback=" + callbackName);
+    scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/channels/" + username + "/videos?limit=" + maxPastBroadcasts + "&broadcasts=true&callback=" + callbackName);
     document.body.appendChild(scriptTag);
 }
 
@@ -247,17 +251,21 @@ for (var i = 0; i < twitchUsers.length; ++i) {
     updateBroadcasts(username);
 }
 
-setInterval(function() {
-    for (var i = 0; i < twitchUsers.length; ++i) {
-        checkLive(twitchUsers[i]);
-    }
-}, 60000);
+if (liveUpdateInterval > 0) {
+    setInterval(function() {
+        for (var i = 0; i < twitchUsers.length; ++i) {
+            checkLive(twitchUsers[i]);
+        }
+    }, liveUpdateInterval);
+}
 
-setInterval(function() {
-    for (var i = 0; i < twitchUsers.length; ++i) {
-        updateBroadcasts(twitchUsers[i]);
-    }
-}, 7200000);
+if (broadcastsUpdateInterval > 0) {
+    setInterval(function() {
+        for (var i = 0; i < twitchUsers.length; ++i) {
+            updateBroadcasts(twitchUsers[i]);
+        }
+    }, broadcastsUpdateInterval);
+}
 
 </script>
 </body>
