@@ -6,6 +6,7 @@ body {
     padding: 0;
     margin: 0;
     background: #002129;
+    font-family: sans-serif;
 }
 
 .user_container {
@@ -26,7 +27,6 @@ body {
     vertical-align: middle;
     display: inline-block;
     color: #268BD2;
-    font-family: sans-serif;
 }
 
 .username:hover {
@@ -156,8 +156,31 @@ function checkLive(username) {
     document.body.appendChild(scriptTag);
 }
 
+function pad(inStr, padChar, length) {
+    var str = "" + inStr;
+    for (var i = 0; i < length - str.length; ++i) {
+        str = padChar + str;
+    }
+    return str;
+}
+
+function datePart(part) {
+    return pad(part, "0", 2);
+}
+
+function formatDate(date) {
+    return datePart((date.getMonth() + 1)) + "/" + datePart(date.getDate()) + "|" + datePart(date.getHours()) + ":" + datePart(date.getMinutes());
+}
+
+function formatDuration(durationInSeconds) {
+    var hours = Math.floor(durationInSeconds/60/60);
+    var minutes = Math.floor(durationInSeconds/60) % 60;
+    var seconds = durationInSeconds % 60;
+    return datePart(hours) + ":" + datePart(minutes) + ":" + datePart(seconds);
+}
+
 function setBroadcasts(username, broadcasts) {
-    // NOTE(asaf): broadcasts are: [{ title, url, image, timestamp }, ...]
+    // NOTE(asaf): broadcasts are: [{ title, url, image, timestamp, durationInSeconds }, ...]
     var contentContainer = userContainers[username].querySelector(".content_container");
     contentContainer.innerHTML = "";
 
@@ -179,8 +202,9 @@ function setBroadcasts(username, broadcasts) {
         title.setAttribute("title", broadcast.title);
         timestamp.setAttribute("title", broadcast.timestamp);
 
+        var broadcastDate = new Date(broadcast.timestamp);
         title.textContent = broadcast.title;
-        timestamp.textContent = new Date(broadcast.timestamp).toLocaleFormat();
+        timestamp.textContent = formatDate(broadcastDate) + " - " + formatDuration(broadcast.durationInSeconds);
 
         detailsContainer.appendChild(timestamp);
         detailsContainer.appendChild(title);
@@ -202,6 +226,7 @@ function updateBroadcasts(username) {
             broadcasts.push({
                 title: video.title,
                 timestamp: video.recorded_at,
+                durationInSeconds: video.length,
                 image: video.preview,
                 url: video.url
             });
