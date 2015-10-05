@@ -103,8 +103,7 @@ var twitchUsers = [
     "abnercoimbre",
     "mr4thdimention",
     "cmuratori",
-    "nothings2",
-    "garlandobloom"
+    "nothings2"
 ];
 
 var userContainers = [];
@@ -238,19 +237,27 @@ function updateBroadcasts(username) {
     document.body.appendChild(scriptTag);
 }
 
-function refreshUser(username) {
-    checkLive(username);
-    updateBroadcasts(username);
-}
-
 for (var i = 0; i < twitchUsers.length; ++i) {
     var username = twitchUsers[i];
     var userContainer = addUser(username);
     userContainers[username] = userContainer;
     document.body.appendChild(userContainer);
     setLive(username, false);
-    refreshUser(username);
+    checkLive(username);
+    updateBroadcasts(username);
 }
+
+setInterval(function() {
+    for (var i = 0; i < twitchUsers.length; ++i) {
+        checkLive(twitchUsers[i]);
+    }
+}, 60000);
+
+setInterval(function() {
+    for (var i = 0; i < twitchUsers.length; ++i) {
+        updateBroadcasts(twitchUsers[i]);
+    }
+}, 7200000);
 
 </script>
 </body>
