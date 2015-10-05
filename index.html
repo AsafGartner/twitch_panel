@@ -141,7 +141,7 @@ function setLive(username, isLive) {
         nameContainer.setAttribute("href", "https://twitch.tv/" + username);
     } else {
         liveMarker.classList.remove("live");
-        nameContainer.setAttribute("href", "https://twitch.tv/" + username  + "/past_broadcasts");
+        nameContainer.setAttribute("href", "https://twitch.tv/" + username  + "/profile/past_broadcasts");
     }
 }
 
@@ -186,6 +186,8 @@ function setBroadcasts(username, broadcasts) {
 
     for (var i = 0; i < broadcasts.length; ++i) {
         var broadcast = broadcasts[i];
+        var broadcastDate = new Date(broadcast.timestamp);
+
         var broadcastContainer = document.createElement("A");
         var image = document.createElement("IMG");
         var detailsContainer = document.createElement("DIV");
@@ -202,7 +204,6 @@ function setBroadcasts(username, broadcasts) {
         title.setAttribute("title", broadcast.title);
         timestamp.setAttribute("title", broadcast.timestamp);
 
-        var broadcastDate = new Date(broadcast.timestamp);
         title.textContent = broadcast.title;
         timestamp.textContent = formatDate(broadcastDate) + " - " + formatDuration(broadcast.durationInSeconds);
 
