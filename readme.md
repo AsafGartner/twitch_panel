@@ -1,5 +1,5 @@
 # Turns out twitch has an API that is 1000000 times faster than their website!
-
+Demo: http://asafgartner.github.io/twitch_panel
 ## Usage
 
 1. Edit the `twitchUsers` variable in index.html.
