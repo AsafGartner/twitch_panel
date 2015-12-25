@@ -14,6 +14,7 @@ var twitchUsers = [
     "martincohen",
     "miblo",
     "serge_rgb",
+    "fierydrake",
     "vihart",
     "asafgartner"
 ];
@@ -107,6 +108,10 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.broadcast_container.new .broadcast_title {
+    color: #859910;
 }
 
 .broadcast_timestamp {
@@ -203,6 +208,7 @@ function setBroadcasts(username, broadcasts) {
     for (var i = 0; i < broadcasts.length; ++i) {
         var broadcast = broadcasts[i];
         var broadcastDate = new Date(broadcast.timestamp);
+        var isNew = (Date.now() - 1000 * 60 * 60 * 24) < broadcastDate.valueOf();
 
         var broadcastContainer = document.createElement("A");
         var image = document.createElement("IMG");
@@ -211,6 +217,9 @@ function setBroadcasts(username, broadcasts) {
         var timestamp = document.createElement("DIV");
 
         broadcastContainer.classList.add("broadcast_container");
+        if (isNew) {
+            broadcastContainer.classList.add("new");
+        }
         detailsContainer.classList.add("broadcast_details_container");
         title.classList.add("broadcast_title");
         timestamp.classList.add("broadcast_timestamp");
