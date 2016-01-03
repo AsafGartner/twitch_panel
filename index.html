@@ -139,7 +139,8 @@ body {
 <body>
 <script type="text/javascript">
 
-var userContainers = [];
+var userContainers = {};
+var userIsLive = {};
 
 function addUser(username) {
     var container = document.createElement("DIV");
@@ -175,6 +176,12 @@ function setLive(username, isLive) {
         liveMarker.classList.remove("live");
         nameContainer.setAttribute("href", "https://twitch.tv/" + username  + "/profile/past_broadcasts");
     }
+
+    if (Notification.permission === "granted" && userIsLive[username] === false && isLive) {
+        new Notification(username + " just went live!");
+    }
+
+    userIsLive[username] = isLive;
 }
 
 function checkLive(username) {
@@ -279,7 +286,6 @@ for (var i = 0; i < twitchUsers.length; ++i) {
     var userContainer = addUser(username);
     userContainers[username] = userContainer;
     document.body.appendChild(userContainer);
-    setLive(username, false);
     checkLive(username);
     if (maxPastBroadcasts > 0) {
         updateBroadcasts(username);
@@ -300,6 +306,12 @@ if (maxPastBroadcasts > 0 && broadcastsUpdateInterval > 0) {
             updateBroadcasts(twitchUsers[i]);
         }
     }, broadcastsUpdateInterval);
+}
+
+if ("Notification" in window) {
+    if (Notification.permission !== "denied" && Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
 }
 
 </script>
