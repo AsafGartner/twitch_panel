@@ -1,0 +1,381 @@
+<html>
+<head>
+<script type="text/javascript">
+
+// You can edit these:
+var twitchUsers = [
+    "handmade_hero",
+    "cmuratori",
+    "naysayer88",
+    "gamesdonequick",
+    "miblo",
+    "vihart",
+    "martincohen",
+    "sssmcgrath",
+    "mr4thdimention",
+    "chronaldragon",
+    "garlandobloom",
+    "drive137",
+    "williamchyr",
+    "steelgolem",
+    "strangezak",
+    "strangedev",
+    "fyoucon",
+    "purposelydrifting",
+    "abnercoimbre",
+    "kelimion",
+    "nothings2",
+    "serge_rgb",
+    "fierydrake",
+    "asafgartner"
+];
+var numPastDays = 20;
+var maxPastBroadcasts = 20;
+var liveUpdateInterval = 60000; // set to 0 to disable automatic updates
+var broadcastsUpdateInterval = 7200000; // set to 0 to disable automatic updates
+
+</script>
+<style>
+
+body {
+    padding: 0;
+    margin: 0;
+    background: #002129;
+    font-family: sans-serif;
+}
+
+.user_container {
+    vertical-align: top;
+    width: 270px;
+}
+
+.content_container {
+    display: none;
+}
+
+.content_container.open {
+    display: block;
+}
+
+.user_header {
+    padding: 5px;
+    height: 30px;
+    white-space: nowrap;
+}
+
+.username {
+    vertical-align: middle;
+    font-size: 25px;
+    text-decoration: none;
+    vertical-align: middle;
+    display: inline-block;
+    color: #268BD2;
+}
+
+.username:hover {
+    text-decoration: underline;
+}
+
+.history_container {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
+.history_pip {
+    display: inline-block;
+    width: 25px;
+    height: 25px;
+    margin: 2.5px;
+    background-color: #003300;
+    border-radius: 2px;
+}
+
+.history_pip.active {
+    background-color: #ccffcc;
+}
+
+.live_marker {
+    vertical-align: middle;
+    margin-right: 10px;
+    background: #002200;
+    border: 1px solid #003300;
+    box-shadow: none;
+    color: #003300;
+    padding: 2px 5px;
+    vertical-align: middle;
+    border-radius: 5px;
+    font-family: consolas, sans-serif;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.live_marker.live {
+    background: #ccffcc;
+    border: 1px solid #bbffbb;
+    box-shadow: 0px 0px 10px 1px #44ee44;
+    color: green;
+}
+
+.broadcast_container {
+    display: block;
+    padding: 5px 10px;
+    white-space: nowrap;
+    color: #657B83;
+}
+
+.broadcast_container:hover {
+    background: #073642;
+}
+
+.broadcast_container img {
+    display: inline-block;
+    vertical-align: middle;
+    width: 50px;
+    height: 38px;
+    margin-right: 5px;
+}
+
+.broadcast_details_container {
+    display: inline-block;
+    vertical-align: middle;
+    overflow: hidden;
+    width: 200px;
+}
+
+.broadcast_title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.broadcast_container.new .broadcast_title {
+    color: #859910;
+}
+
+.broadcast_timestamp {
+    color: #B58910;
+    font-weight: bold;
+}
+
+.broadcast_container:visited .broadcast_timestamp {
+    color: #CB4B16;
+}
+
+</style>
+</head>
+<body>
+<script type="text/javascript">
+
+var userContainers = {};
+var userIsLive = {};
+
+function addUser(username) {
+    var container = document.createElement("DIV");
+    var header = document.createElement("DIV");
+    var nameContainer = document.createElement("a");
+    var historyContainer = document.createElement("DIV");
+    var liveMarker = document.createElement("DIV");
+    var contentContainer = document.createElement("DIV");
+
+    container.classList.add("user_container");
+    header.classList.add("user_header");
+    nameContainer.classList.add("username");
+    historyContainer.classList.add("history_container");
+    liveMarker.classList.add("live_marker");
+    contentContainer.classList.add("content_container");
+
+    historyContainer.addEventListener("click", function() {
+        toggleContent(username);
+    });
+
+    nameContainer.textContent = username;
+    liveMarker.textContent = "LIVE";
+
+    header.appendChild(liveMarker);
+    header.appendChild(historyContainer);
+    header.appendChild(nameContainer);
+    container.appendChild(header);
+    container.appendChild(contentContainer);
+
+    return container;
+}
+
+function toggleContent(username) {
+    var contentContainer = userContainers[username].querySelector(".content_container");
+    contentContainer.classList.toggle("open");
+}
+
+function setLive(username, isLive) {
+    var liveMarker = userContainers[username].querySelector(".live_marker");
+    var nameContainer = userContainers[username].querySelector(".username");
+    if (isLive) {
+        liveMarker.classList.add("live");
+        nameContainer.setAttribute("href", "https://twitch.tv/" + username);
+    } else {
+        liveMarker.classList.remove("live");
+        nameContainer.setAttribute("href", "https://twitch.tv/" + username  + "/profile/past_broadcasts");
+    }
+
+    if (Notification.permission === "granted" && userIsLive[username] === false && isLive) {
+        new Notification(username + " just went live!");
+    }
+
+    userIsLive[username] = isLive;
+}
+
+function checkLive(username) {
+    var scriptTag = document.createElement("SCRIPT");
+    scriptTag.setAttribute("type", "text/javascript");
+    var callbackName = "___callback_checkLive_" + username;
+    window[callbackName] = function(apiResult) {
+        setLive(username, apiResult.stream != null);
+    }
+    scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/streams/" + username + "?callback=" + callbackName);
+    document.body.appendChild(scriptTag);
+}
+
+function pad(inStr, padChar, length) {
+    var str = "" + inStr;
+    for (var i = 0; i < length - str.length; ++i) {
+        str = padChar + str;
+    }
+    return str;
+}
+
+function datePart(part) {
+    return pad(part, "0", 2);
+}
+
+function formatDate(date) {
+    return datePart((date.getMonth() + 1)) + "/" + datePart(date.getDate()) + "|" + datePart(date.getHours()) + ":" + datePart(date.getMinutes());
+}
+
+function formatDuration(durationInSeconds) {
+    var hours = Math.floor(durationInSeconds/60/60);
+    var minutes = Math.floor(durationInSeconds/60) % 60;
+    var seconds = durationInSeconds % 60;
+    return datePart(hours) + ":" + datePart(minutes) + ":" + datePart(seconds);
+}
+
+function setBroadcasts(username, broadcasts) {
+    // NOTE(asaf): broadcasts are: [{ title, url, image, timestamp, durationInSeconds }, ...]
+    var contentContainer = userContainers[username].querySelector(".content_container");
+    contentContainer.innerHTML = "";
+
+    var dayInMs = 1000*60*60*24;
+    var pastDays = [];
+
+    for (var i = 0; i < broadcasts.length; ++i) {
+        var broadcast = broadcasts[i];
+        var broadcastDate = new Date(broadcast.timestamp);
+        var timeAgo = Date.now() - broadcastDate.valueOf();
+        var isNew = timeAgo < dayInMs;
+
+        var numDaysAgo = Math.floor(timeAgo / dayInMs);
+        pastDays[numDaysAgo] = true;
+
+        var broadcastContainer = document.createElement("A");
+        var image = document.createElement("IMG");
+        var detailsContainer = document.createElement("DIV");
+        var title = document.createElement("DIV");
+        var timestamp = document.createElement("DIV");
+
+        broadcastContainer.classList.add("broadcast_container");
+        if (isNew) {
+            broadcastContainer.classList.add("new");
+        }
+        detailsContainer.classList.add("broadcast_details_container");
+        title.classList.add("broadcast_title");
+        timestamp.classList.add("broadcast_timestamp");
+
+        broadcastContainer.setAttribute("href", broadcast.url);
+        image.setAttribute("src", broadcast.image);
+        title.setAttribute("title", broadcast.title);
+        timestamp.setAttribute("title", broadcast.timestamp);
+
+        title.textContent = broadcast.title;
+        timestamp.textContent = formatDate(broadcastDate) + " - " + formatDuration(broadcast.durationInSeconds);
+
+        detailsContainer.appendChild(timestamp);
+        detailsContainer.appendChild(title);
+        broadcastContainer.appendChild(image);
+        broadcastContainer.appendChild(detailsContainer);
+
+        contentContainer.appendChild(broadcastContainer);
+    }
+
+    setPips(username, numPastDays, pastDays);
+}
+
+function setPips(username, numPips, pipStates) {
+    var historyContainer = userContainers[username].querySelector(".history_container");
+    historyContainer.innerHTML = "";
+    var inactivePip = document.createElement("DIV");
+    inactivePip.classList.add("history_pip");
+    var activePip = inactivePip.cloneNode();
+    activePip.classList.add("active");
+    for (var i = 0; i < numPips; ++i) {
+        historyContainer.appendChild(pipStates[i] ? activePip.cloneNode() : inactivePip.cloneNode());
+    }
+}
+
+function updateBroadcasts(username) {
+    var scriptTag = document.createElement("SCRIPT");
+    scriptTag.setAttribute("type", "text/javascript");
+    var callbackName = "___callback_updateBroadcasts_" + username;
+    window[callbackName] = function(apiResult) {
+        var broadcasts = [];
+        for (var i = 0; i < apiResult.videos.length; ++i) {
+            var video = apiResult.videos[i]
+            broadcasts.push({
+                title: video.title,
+                timestamp: video.recorded_at,
+                durationInSeconds: video.length,
+                image: video.preview,
+                url: video.url
+            });
+        }
+        setBroadcasts(username, broadcasts);
+    }
+    scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/channels/" + username + "/videos?limit=" + maxPastBroadcasts + "&broadcasts=true&callback=" + callbackName);
+    document.body.appendChild(scriptTag);
+}
+
+for (var i = 0; i < twitchUsers.length; ++i) {
+    var username = twitchUsers[i];
+    var userContainer = addUser(username);
+    userContainers[username] = userContainer;
+    document.body.appendChild(userContainer);
+    setPips(username, numPastDays, []);
+    checkLive(username);
+    if (maxPastBroadcasts > 0) {
+        updateBroadcasts(username);
+    }
+}
+
+if (liveUpdateInterval > 0) {
+    setInterval(function() {
+        for (var i = 0; i < twitchUsers.length; ++i) {
+            checkLive(twitchUsers[i]);
+        }
+    }, liveUpdateInterval);
+}
+
+if (maxPastBroadcasts > 0 && broadcastsUpdateInterval > 0) {
+    setInterval(function() {
+        for (var i = 0; i < twitchUsers.length; ++i) {
+            updateBroadcasts(twitchUsers[i]);
+        }
+    }, broadcastsUpdateInterval);
+}
+
+if ("Notification" in window) {
+    if (Notification.permission !== "denied" && Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
+}
+
+</script>
+</body>
+</html>
