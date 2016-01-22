@@ -30,7 +30,7 @@ var twitchUsers = [
     "asafgartner"
 ];
 var numPastDays = 7;
-var maxPastBroadcasts = 20;
+var maxPastBroadcasts = 100;
 var liveUpdateInterval = 60000; // set to 0 to disable automatic updates
 var broadcastsUpdateInterval = 7200000; // set to 0 to disable automatic updates
 
@@ -46,7 +46,6 @@ body {
 
 .user_container {
     vertical-align: top;
-    width: 270px;
 }
 
 .content_container {
@@ -64,12 +63,18 @@ body {
 }
 
 .username {
+    cursor: pointer;
     vertical-align: middle;
     font-size: 25px;
     text-decoration: none;
     vertical-align: middle;
     display: inline-block;
-    color: #268BD2;
+    color: rgba(38, 139, 210, 0.2);
+}
+
+.user_container.live .username,
+.user_container.has_broadcasts .username {
+    color: rgba(38, 139, 210, 1);
 }
 
 .username:hover {
@@ -80,6 +85,7 @@ body {
     display: inline-block;
     vertical-align: middle;
     margin-right: 5px;
+    cursor: pointer;
 }
 
 .history_pip {
@@ -96,6 +102,7 @@ body {
 }
 
 .live_marker {
+    text-decoration: none;
     vertical-align: middle;
     margin-right: 10px;
     background: #002200;
@@ -110,56 +117,91 @@ body {
     display: inline-block;
 }
 
-.live_marker.live {
+.user_container.live .live_marker {
     background: #ccffcc;
     border: 1px solid #bbffbb;
     box-shadow: 0px 0px 10px 1px #44ee44;
     color: green;
 }
 
-.broadcast_container {
+.no_broadcasts {
     display: block;
-    padding: 5px 10px;
-    white-space: nowrap;
+    margin-left: 20px;
+    font-weight: bold;
+    color: #B58910;
+    font-size: 20px;
+}
+
+.broadcast_container {
+    vertical-align: top;
+    display: inline-block;
+    padding: 10px;
     color: #657B83;
+    text-decoration: none;
 }
 
 .broadcast_container:hover {
     background: #073642;
 }
 
-.broadcast_container img {
-    display: inline-block;
-    vertical-align: middle;
-    width: 50px;
-    height: 38px;
-    margin-right: 5px;
+.broadcast_container .image_container {
+    position: relative;
+    width: 320px;
 }
 
-.broadcast_details_container {
-    display: inline-block;
-    vertical-align: middle;
-    overflow: hidden;
-    width: 200px;
+.broadcast_container img {
+    display: block;
+    width: 320px;
+    height: 240px;
 }
 
 .broadcast_title {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: 320px;
 }
 
-.broadcast_container.new .broadcast_title {
-    color: #859910;
+.broadcast_container .new_banner {
+    display: none;
+    font-weight: bold;
+    border-radius: 5px;
+    padding: 1px 3px;
+    position: absolute;
+    bottom: 7px;
+    left: 7px;
+    background: #ccffcc;
+    border: 1px solid #bbffbb;
+    box-shadow: 0px 0px 6px 1px #44ee44;
+    color: green;
+    font-size: 10px;
+}
+
+.broadcast_container.new .new_banner {
+    display: block;
+}
+
+.broadcast_container:visited .broadcast_title {
+    color: #CB4B16;
 }
 
 .broadcast_timestamp {
     color: #B58910;
     font-weight: bold;
+    background-color: #252525;
+    border-radius: 7px;
+    padding: 2px 5px;
+    position: absolute;
+    top: 5px;
+    left: 5px;
 }
 
-.broadcast_container:visited .broadcast_timestamp {
-    color: #CB4B16;
+.broadcast_duration {
+    color: #B58910;
+    font-weight: bold;
+    background-color: #252525;
+    border-radius: 7px;
+    padding: 2px 5px;
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
 }
 
 </style>
@@ -167,15 +209,32 @@ body {
 <body>
 <script type="text/javascript">
 
+var weekdays = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday"
+];
+
 var userContainers = {};
 var userIsLive = {};
+var userLastBroadcast = {};
+
+for (var i = 0; i < twitchUsers.length; ++i) {
+    userContainers[twitchUsers[i]] = null;
+    userIsLive[twitchUsers[i]] = false;
+    userLastBroadcast[twitchUsers[i]] = null;
+}
 
 function addUser(username) {
     var container = document.createElement("DIV");
     var header = document.createElement("DIV");
-    var nameContainer = document.createElement("a");
+    var nameContainer = document.createElement("A");
     var historyContainer = document.createElement("DIV");
-    var liveMarker = document.createElement("DIV");
+    var liveMarker = document.createElement("A");
     var contentContainer = document.createElement("DIV");
 
     container.classList.add("user_container");
@@ -189,8 +248,14 @@ function addUser(username) {
         toggleContent(username);
     });
 
+    nameContainer.addEventListener("click", function() {
+        toggleContent(username);
+    });
+
     nameContainer.textContent = username;
     liveMarker.textContent = "LIVE";
+    liveMarker.setAttribute("href", "https://twitch.tv/" + username);
+    liveMarker.setAttribute("target", "_blank");
 
     header.appendChild(liveMarker);
     header.appendChild(historyContainer);
@@ -207,14 +272,11 @@ function toggleContent(username) {
 }
 
 function setLive(username, isLive) {
-    var liveMarker = userContainers[username].querySelector(".live_marker");
-    var nameContainer = userContainers[username].querySelector(".username");
+    var userContainer = userContainers[username];
     if (isLive) {
-        liveMarker.classList.add("live");
-        nameContainer.setAttribute("href", "https://twitch.tv/" + username);
+        userContainer.classList.add("live");
     } else {
-        liveMarker.classList.remove("live");
-        nameContainer.setAttribute("href", "https://twitch.tv/" + username  + "/profile/past_broadcasts");
+        userContainer.classList.remove("live");
     }
 
     if (Notification.permission === "granted" && userIsLive[username] === false && isLive) {
@@ -230,6 +292,7 @@ function checkLive(username) {
     var callbackName = "___callback_checkLive_" + username;
     window[callbackName] = function(apiResult) {
         setLive(username, apiResult.stream != null);
+        sort();
     }
     scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/streams/" + username + "?callback=" + callbackName);
     document.body.appendChild(scriptTag);
@@ -248,7 +311,9 @@ function datePart(part) {
 }
 
 function formatDate(date) {
-    return datePart((date.getMonth() + 1)) + "/" + datePart(date.getDate()) + "|" + datePart(date.getHours()) + ":" + datePart(date.getMinutes());
+    return weekdays[date.getDay()] + " - " + date.toLocaleString();
+    //return date.toDateString() + " - " + date.toLocaleTimeString();
+    //return date.getFullYear() + "/" + datePart((date.getMonth() + 1)) + "/" + datePart(date.getDate()) + " - " + datePart(date.getHours()) + ":" + datePart(date.getMinutes());
 }
 
 function formatDuration(durationInSeconds) {
@@ -266,43 +331,61 @@ function setBroadcasts(username, broadcasts) {
     var dayInMs = 1000*60*60*24;
     var pastDays = [];
 
-    for (var i = 0; i < broadcasts.length; ++i) {
-        var broadcast = broadcasts[i];
-        var broadcastDate = new Date(broadcast.timestamp);
-        var timeAgo = Date.now() - broadcastDate.valueOf();
-        var isNew = timeAgo < dayInMs;
+    if (broadcasts.length == 0) {
+        var noBroadcasts = document.createElement("DIV");
+        noBroadcasts.classList.add("no_broadcasts");
+        noBroadcasts.textContent = "No past broadcasts found for " + username + "!";
+        contentContainer.appendChild(noBroadcasts);
+        userContainers[username].classList.remove("has_broadcasts");
+    } else {
+        userContainers[username].classList.add("has_broadcasts");
+        for (var i = 0; i < broadcasts.length; ++i) {
+            var broadcast = broadcasts[i];
+            var broadcastDate = new Date(broadcast.timestamp);
+            var timeAgo = Date.now() - broadcastDate.valueOf();
+            var isNew = timeAgo < dayInMs;
 
-        var numDaysAgo = Math.floor(timeAgo / dayInMs);
-        pastDays[numDaysAgo] = true;
+            var numDaysAgo = Math.floor(timeAgo / dayInMs);
+            pastDays[numDaysAgo] = true;
 
-        var broadcastContainer = document.createElement("A");
-        var image = document.createElement("IMG");
-        var detailsContainer = document.createElement("DIV");
-        var title = document.createElement("DIV");
-        var timestamp = document.createElement("DIV");
+            var broadcastContainer = document.createElement("A");
+            var imageContainer = document.createElement("DIV");
+            var image = document.createElement("IMG");
+            var timestamp = document.createElement("DIV");
+            var duration = document.createElement("DIV");
+            var title = document.createElement("DIV");
+            var newBanner = document.createElement("DIV");
 
-        broadcastContainer.classList.add("broadcast_container");
-        if (isNew) {
-            broadcastContainer.classList.add("new");
+            broadcastContainer.classList.add("broadcast_container");
+            if (isNew) {
+                broadcastContainer.classList.add("new");
+            }
+            imageContainer.classList.add("image_container");
+            title.classList.add("broadcast_title");
+            timestamp.classList.add("broadcast_timestamp");
+            duration.classList.add("broadcast_duration");
+            newBanner.classList.add("new_banner");
+
+            broadcastContainer.setAttribute("href", broadcast.url);
+            broadcastContainer.setAttribute("target", "_blank");
+            image.setAttribute("src", broadcast.image);
+            title.setAttribute("title", broadcast.title);
+            timestamp.setAttribute("title", broadcast.timestamp);
+
+            title.textContent = broadcast.title;
+            timestamp.textContent = formatDate(broadcastDate);
+            duration.textContent = formatDuration(broadcast.durationInSeconds);
+            newBanner.textContent = "NEW!";
+
+            imageContainer.appendChild(image);
+            imageContainer.appendChild(timestamp);
+            imageContainer.appendChild(duration);
+            imageContainer.appendChild(newBanner);
+            broadcastContainer.appendChild(imageContainer);
+            broadcastContainer.appendChild(title);
+
+            contentContainer.appendChild(broadcastContainer);
         }
-        detailsContainer.classList.add("broadcast_details_container");
-        title.classList.add("broadcast_title");
-        timestamp.classList.add("broadcast_timestamp");
-
-        broadcastContainer.setAttribute("href", broadcast.url);
-        image.setAttribute("src", broadcast.image);
-        title.setAttribute("title", broadcast.title);
-        timestamp.setAttribute("title", broadcast.timestamp);
-
-        title.textContent = broadcast.title;
-        timestamp.textContent = formatDate(broadcastDate) + " - " + formatDuration(broadcast.durationInSeconds);
-
-        detailsContainer.appendChild(timestamp);
-        detailsContainer.appendChild(title);
-        broadcastContainer.appendChild(image);
-        broadcastContainer.appendChild(detailsContainer);
-
-        contentContainer.appendChild(broadcastContainer);
     }
 
     setPips(username, numPastDays, pastDays);
@@ -337,9 +420,30 @@ function updateBroadcasts(username) {
             });
         }
         setBroadcasts(username, broadcasts);
+        userLastBroadcast[username] = (broadcasts.length > 0 ? new Date(broadcasts[0].timestamp) : null);
+        sort();
     }
     scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/channels/" + username + "/videos?limit=" + maxPastBroadcasts + "&broadcasts=true&callback=" + callbackName);
     document.body.appendChild(scriptTag);
+}
+
+function compareUsers(a, b) {
+    if (userIsLive[a] == userIsLive[b]) {
+        return (userLastBroadcast[b] || 0) - (userLastBroadcast[a] || 0);
+    } else {
+        if (userIsLive[a]) {
+            return -1;
+        } else {
+            return 1;
+        }
+    }
+}
+
+function sort() {
+    twitchUsers.sort(compareUsers);
+    for (var i = 0; i < twitchUsers.length; ++i) {
+        document.body.appendChild(userContainers[twitchUsers[i]]);
+    }
 }
 
 for (var i = 0; i < twitchUsers.length; ++i) {
