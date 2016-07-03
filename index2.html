@@ -1,5 +1,6 @@
 <html>
 <head>
+<meta charset="utf-8">
 <script type="text/javascript">
 
 // You can edit these:
@@ -21,7 +22,6 @@ var twitchUsers = [
     "strangezak",
     "strangedev",
     "fyoucon",
-    "purposelydrifting",
     "abnercoimbre",
     "kelimion",
     "nothings2",
@@ -79,6 +79,9 @@ body {
 .user_container.live .username,
 .user_container.has_broadcasts .username {
     color: rgba(38, 139, 210, 1);
+}
+.user_container.has_broadcasts .no_broadcasts {
+    display: none;
 }
 
 .username:hover {
@@ -226,11 +229,19 @@ var weekdays = [
 var userContainers = {};
 var userIsLive = {};
 var userLastBroadcast = {};
+var userBroadcasts = {};
+var userPips = {};
+var dayInMs = 1000*60*60*24;
 
 for (var i = 0; i < twitchUsers.length; ++i) {
     userContainers[twitchUsers[i]] = null;
     userIsLive[twitchUsers[i]] = false;
     userLastBroadcast[twitchUsers[i]] = null;
+    userBroadcasts[twitchUsers[i]] = [];
+    userPips[twitchUsers[i]] = [];
+    for (var day = 0; day < numPastDays; ++day) {
+        userPips[twitchUsers[i]][day] = false;
+    }
 }
 
 function addUser(username) {
@@ -240,13 +251,17 @@ function addUser(username) {
     var historyContainer = document.createElement("DIV");
     var liveMarker = document.createElement("A");
     var contentContainer = document.createElement("DIV");
+    var noBroadcasts = document.createElement("DIV");
+    var inactivePip = document.createElement("DIV");
 
     container.classList.add("user_container");
     header.classList.add("user_header");
     nameContainer.classList.add("username");
     historyContainer.classList.add("history_container");
+    inactivePip.classList.add("history_pip");
     liveMarker.classList.add("live_marker");
     contentContainer.classList.add("content_container");
+    noBroadcasts.classList.add("no_broadcasts");
 
     historyContainer.addEventListener("click", function() {
         toggleContent(username);
@@ -257,10 +272,15 @@ function addUser(username) {
     });
 
     nameContainer.textContent = username;
+    noBroadcasts.textContent = "No past broadcasts found for " + username + "!";
     liveMarker.textContent = "LIVE";
     liveMarker.setAttribute("href", "https://twitch.tv/" + username);
     liveMarker.setAttribute("target", "_blank");
 
+    for (var i = 0; i < numPastDays; ++i) {
+        historyContainer.appendChild(inactivePip.cloneNode());
+    }
+    contentContainer.appendChild(noBroadcasts);
     header.appendChild(liveMarker);
     header.appendChild(historyContainer);
     header.appendChild(nameContainer);
@@ -296,7 +316,7 @@ function checkLive(username) {
     var callbackName = "___callback_checkLive_" + username;
     window[callbackName] = function(apiResult) {
         setLive(username, apiResult.stream != null);
-        sort();
+        sortUser(username);
     }
     scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/streams/" + username + "?callback=" + callbackName);
     document.body.appendChild(scriptTag);
@@ -329,81 +349,101 @@ function formatDuration(durationInSeconds) {
 
 function setBroadcasts(username, broadcasts) {
     // NOTE(asaf): broadcasts are: [{ title, url, image, timestamp, durationInSeconds }, ...]
-    var contentContainer = userContainers[username].querySelector(".content_container");
-    contentContainer.innerHTML = "";
-
-    var dayInMs = 1000*60*60*24;
-    var pastDays = [];
 
     if (broadcasts.length == 0) {
-        var noBroadcasts = document.createElement("DIV");
-        noBroadcasts.classList.add("no_broadcasts");
-        noBroadcasts.textContent = "No past broadcasts found for " + username + "!";
-        contentContainer.appendChild(noBroadcasts);
         userContainers[username].classList.remove("has_broadcasts");
     } else {
         userContainers[username].classList.add("has_broadcasts");
-        for (var i = 0; i < broadcasts.length; ++i) {
-            var broadcast = broadcasts[i];
-            var broadcastDate = new Date(broadcast.timestamp);
-            var timeAgo = Date.now() - broadcastDate.valueOf();
-            var isNew = timeAgo < dayInMs;
+    }
 
-            var numDaysAgo = Math.floor(timeAgo / dayInMs);
-            pastDays[numDaysAgo] = true;
+    var contentContainer = userContainers[username].querySelector(".content_container");
+    var newIndex = 0;
+    var oldIndex = 0;
 
-            var broadcastContainer = document.createElement("A");
-            var imageContainer = document.createElement("DIV");
-            var image = document.createElement("IMG");
-            var timestamp = document.createElement("DIV");
-            var duration = document.createElement("DIV");
-            var title = document.createElement("DIV");
-            var newBanner = document.createElement("DIV");
-
-            broadcastContainer.classList.add("broadcast_container");
-            if (isNew) {
-                broadcastContainer.classList.add("new");
+    while (oldIndex < (userBroadcasts[username].length || 0) || newIndex < broadcasts.length) {
+        var comparison = ((userBroadcasts[username][oldIndex] && userBroadcasts[username][oldIndex].timestamp.valueOf()) || 0) - ((broadcasts[newIndex] && broadcasts[newIndex].timestamp.valueOf()) || 0);
+        if (comparison < 0) {
+            var broadcast = createBroadcast(broadcasts[newIndex]);
+            contentContainer.insertBefore(broadcast, ((userBroadcasts[username][oldIndex] && userBroadcasts[username][oldIndex].el) || null));
+            broadcasts[newIndex].el = broadcast;
+            newIndex++;
+        } else if (comparison == 0) {
+            broadcasts[newIndex].el = userBroadcasts[username][oldIndex].el;
+            if (broadcasts[newIndex].durationInSeconds != userBroadcasts[username][oldIndex].durationInSeconds) {
+                broadcasts[newIndex].el.querySelector(".broadcast_duration").textContent = formatDuration(broadcasts[newIndex].durationInSeconds);
             }
-            imageContainer.classList.add("image_container");
-            title.classList.add("broadcast_title");
-            timestamp.classList.add("broadcast_timestamp");
-            duration.classList.add("broadcast_duration");
-            newBanner.classList.add("new_banner");
-
-            broadcastContainer.setAttribute("href", broadcast.url);
-            broadcastContainer.setAttribute("target", "_blank");
-            image.setAttribute("src", broadcast.image);
-            title.setAttribute("title", broadcast.title);
-            timestamp.setAttribute("title", broadcast.timestamp);
-
-            title.textContent = broadcast.title;
-            timestamp.textContent = formatDate(broadcastDate);
-            duration.textContent = formatDuration(broadcast.durationInSeconds);
-            newBanner.textContent = "NEW!";
-
-            imageContainer.appendChild(image);
-            imageContainer.appendChild(timestamp);
-            imageContainer.appendChild(duration);
-            imageContainer.appendChild(newBanner);
-            broadcastContainer.appendChild(imageContainer);
-            broadcastContainer.appendChild(title);
-
-            contentContainer.appendChild(broadcastContainer);
+            oldIndex++;
+            newIndex++;
+        } else {
+            contentContainer.removeChild(userBroadcasts[username][oldIndex].el);
+            oldIndex++;
         }
     }
 
-    setPips(username, numPastDays, pastDays);
+    userBroadcasts[username] = broadcasts;
+
+    var pastDays = [];
+    for (var i = 0; i < broadcasts.length; ++i) {
+        var timeAgo = Date.now() - broadcasts[i].timestamp.valueOf();
+        var numDaysAgo = Math.floor(timeAgo / dayInMs);
+        pastDays[numDaysAgo] = true;
+    }
+    setPips(username, pastDays);
+
+    userLastBroadcast[username] = (broadcasts.length > 0 ? broadcasts[0].timestamp : null);
+    sortUser(username);
 }
 
-function setPips(username, numPips, pipStates) {
+function createBroadcast(broadcast) {
+    var timeAgo = Date.now() - broadcast.timestamp.valueOf();
+    var isNew = timeAgo < dayInMs;
+
+    var broadcastContainer = document.createElement("A");
+    var imageContainer = document.createElement("DIV");
+    var image = document.createElement("IMG");
+    var timestamp = document.createElement("DIV");
+    var duration = document.createElement("DIV");
+    var title = document.createElement("DIV");
+    var newBanner = document.createElement("DIV");
+
+    broadcastContainer.classList.add("broadcast_container");
+    if (isNew) {
+        broadcastContainer.classList.add("new");
+    }
+    imageContainer.classList.add("image_container");
+    title.classList.add("broadcast_title");
+    timestamp.classList.add("broadcast_timestamp");
+    duration.classList.add("broadcast_duration");
+    newBanner.classList.add("new_banner");
+
+    broadcastContainer.setAttribute("href", broadcast.url);
+    broadcastContainer.setAttribute("target", "_blank");
+    image.setAttribute("src", broadcast.image);
+    title.setAttribute("title", broadcast.title);
+    timestamp.setAttribute("title", broadcast.timestamp.toISOString());
+
+    title.textContent = broadcast.title;
+    timestamp.textContent = formatDate(broadcast.timestamp);
+    duration.textContent = formatDuration(broadcast.durationInSeconds);
+    newBanner.textContent = "NEW!";
+
+    imageContainer.appendChild(image);
+    imageContainer.appendChild(timestamp);
+    imageContainer.appendChild(duration);
+    imageContainer.appendChild(newBanner);
+    broadcastContainer.appendChild(imageContainer);
+    broadcastContainer.appendChild(title);
+
+    return broadcastContainer;
+}
+
+function setPips(username, pipStates) {
     var historyContainer = userContainers[username].querySelector(".history_container");
-    historyContainer.innerHTML = "";
-    var inactivePip = document.createElement("DIV");
-    inactivePip.classList.add("history_pip");
-    var activePip = inactivePip.cloneNode();
-    activePip.classList.add("active");
-    for (var i = 0; i < numPips; ++i) {
-        historyContainer.appendChild(pipStates[i] ? activePip.cloneNode() : inactivePip.cloneNode());
+    for (var i = 0; i < numPastDays; ++i) {
+        if (userPips[username][i] != pipStates[i]) {
+            historyContainer.childNodes[i].classList.toggle("active", (pipStates[i] ? true : false));
+            userPips[username][i] = pipStates[i];
+        }
     }
 }
 
@@ -417,15 +457,13 @@ function updateBroadcasts(username) {
             var video = apiResult.videos[i]
             broadcasts.push({
                 title: video.title,
-                timestamp: video.recorded_at,
+                timestamp: new Date(video.recorded_at),
                 durationInSeconds: video.length,
                 image: video.preview,
                 url: video.url
             });
         }
         setBroadcasts(username, broadcasts);
-        userLastBroadcast[username] = (broadcasts.length > 0 ? new Date(broadcasts[0].timestamp) : null);
-        sort();
     }
     scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/channels/" + username + "/videos?limit=" + maxPastBroadcasts + "&broadcasts=true&callback=" + callbackName);
     document.body.appendChild(scriptTag);
@@ -443,10 +481,31 @@ function compareUsers(a, b) {
     }
 }
 
+function sortUser(username) {
+    var prevIdx = twitchUsers.indexOf(username);
+    twitchUsers.sort(compareUsers);
+    var idx = twitchUsers.indexOf(username);
+    if (prevIdx != idx) {
+        document.body.insertBefore(userContainers[username], userContainers[twitchUsers[idx+1]]);
+    }
+}
+
 function sort() {
     twitchUsers.sort(compareUsers);
     for (var i = 0; i < twitchUsers.length; ++i) {
         document.body.appendChild(userContainers[twitchUsers[i]]);
+    }
+}
+
+function checkLiveAll() {
+    for (var i = 0; i < twitchUsers.length; ++i) {
+        checkLive(twitchUsers[i]);
+    }
+}
+
+function updateBroadcastsAll() {
+    for (var i = 0; i < twitchUsers.length; ++i) {
+        updateBroadcasts(twitchUsers[i]);
     }
 }
 
@@ -455,7 +514,7 @@ for (var i = 0; i < twitchUsers.length; ++i) {
     var userContainer = addUser(username);
     userContainers[username] = userContainer;
     document.body.appendChild(userContainer);
-    setPips(username, numPastDays, []);
+    setPips(username, []);
     checkLive(username);
     if (maxPastBroadcasts > 0) {
         updateBroadcasts(username);
@@ -464,17 +523,13 @@ for (var i = 0; i < twitchUsers.length; ++i) {
 
 if (liveUpdateInterval > 0) {
     setInterval(function() {
-        for (var i = 0; i < twitchUsers.length; ++i) {
-            checkLive(twitchUsers[i]);
-        }
+        checkLiveAll();
     }, liveUpdateInterval);
 }
 
 if (maxPastBroadcasts > 0 && broadcastsUpdateInterval > 0) {
     setInterval(function() {
-        for (var i = 0; i < twitchUsers.length; ++i) {
-            updateBroadcasts(twitchUsers[i]);
-        }
+        updateBroadcastsAll();
     }, broadcastsUpdateInterval);
 }
 
