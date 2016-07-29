@@ -372,6 +372,13 @@ function setBroadcasts(username, broadcasts) {
             if (broadcasts[newIndex].durationInSeconds != userBroadcasts[username][oldIndex].durationInSeconds) {
                 broadcasts[newIndex].el.querySelector(".broadcast_duration").textContent = formatDuration(broadcasts[newIndex].durationInSeconds);
             }
+            if (broadcasts[newIndex].isNew != userBroadcasts[username][oldIndex].isNew) {
+                if (broadcasts[newIndex].isNew) {
+                    broadcastContainer.classList.add("new");
+                } else {
+                    broadcastContainer.classList.remove("new");
+                }
+            }
             oldIndex++;
             newIndex++;
         } else {
@@ -395,9 +402,6 @@ function setBroadcasts(username, broadcasts) {
 }
 
 function createBroadcast(broadcast) {
-    var timeAgo = Date.now() - broadcast.timestamp.valueOf();
-    var isNew = timeAgo < dayInMs;
-
     var broadcastContainer = document.createElement("A");
     var imageContainer = document.createElement("DIV");
     var image = document.createElement("IMG");
@@ -407,7 +411,7 @@ function createBroadcast(broadcast) {
     var newBanner = document.createElement("DIV");
 
     broadcastContainer.classList.add("broadcast_container");
-    if (isNew) {
+    if (broadcast.isNew) {
         broadcastContainer.classList.add("new");
     }
     imageContainer.classList.add("image_container");
@@ -460,7 +464,8 @@ function updateBroadcasts(username) {
                 timestamp: new Date(video.recorded_at),
                 durationInSeconds: video.length,
                 image: video.preview,
-                url: video.url
+                url: video.url,
+                isNew: (Date.now() - (new Date(video.recorded_at)).valueOf()) < dayInMs
             });
         }
         setBroadcasts(username, broadcasts);
