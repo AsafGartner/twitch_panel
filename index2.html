@@ -374,9 +374,9 @@ function setBroadcasts(username, broadcasts) {
             }
             if (broadcasts[newIndex].isNew != userBroadcasts[username][oldIndex].isNew) {
                 if (broadcasts[newIndex].isNew) {
-                    broadcastContainer.classList.add("new");
+                    broadcasts[newIndex].el.classList.add("new");
                 } else {
-                    broadcastContainer.classList.remove("new");
+                    broadcasts[newIndex].el.classList.remove("new");
                 }
             }
             oldIndex++;
