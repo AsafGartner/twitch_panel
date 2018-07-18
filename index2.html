@@ -49,6 +49,8 @@ var twitchUsers = [
     "cultofrig",
     "bvisness",
     "delix27",
+    "jessicamak",
+    "amirrajan",
     "asafgartner"
 ];
 var numPastDays = 7;
@@ -335,7 +337,7 @@ function checkLive(username) {
     var callbackName = "___callback_checkLive_" + username;
     window[callbackName] = function(apiResult) {
         setLive(username, apiResult.stream != null);
-        sortUser(username);
+        sort();
     }
     scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/streams/" + username + "?client_id=tmie0e5s3gq8ygkfc0i2t83i53xkuow&callback=" + callbackName);
     document.body.appendChild(scriptTag);
@@ -417,7 +419,7 @@ function setBroadcasts(username, broadcasts) {
     setPips(username, pastDays);
 
     userLastBroadcast[username] = (broadcasts.length > 0 ? broadcasts[0].timestamp : null);
-    sortUser(username);
+    sort();
 }
 
 function createBroadcast(broadcast) {
@@ -506,6 +508,7 @@ function compareUsers(a, b) {
 }
 
 function sortUser(username) {
+    // This is unstable.
     var prevIdx = twitchUsers.indexOf(username);
     twitchUsers.sort(compareUsers);
     var idx = twitchUsers.indexOf(username);
