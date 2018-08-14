@@ -1,0 +1,580 @@
+<html>
+<head>
+<meta charset="utf-8">
+<title>Streamers</title>
+<script type="text/javascript">
+
+// You can edit these:
+var twitchUsers = [
+    "handmade_hero",
+    "cmuratori",
+    "naysayer88",
+    "gamesdonequick",
+    "miblo",
+    "martincohen",
+    "sssmcgrath",
+    "mr4thdimention",
+    "chronaldragon",
+    "mvandevander",
+    "drive137",
+    "steelgolem",
+    "abnercoimbre",
+    "kelimion",
+    "nothings2",
+    "serge_rgb",
+    "fierydrake",
+    "pervognsen",
+    "ginger_bill",
+    "a_pulsing_mage",
+    "pdrifting",
+    "oswald_hurlem",
+    "williambundy",
+    "thisdrunkdane",
+    "bobross",
+    "miotatsu",
+    "rygorous",
+    "patrickrothfuss",
+    "kknewkles",
+    "captainkraft",
+    "croepha",
+    "jackmott42",
+    "bvisness",
+    "delix27",
+    "joeyprink",
+    "asafgartner"
+];
+var numPastDays = 7;
+var maxPastBroadcasts = 100;
+var liveUpdateInterval = 60000; // set to 0 to disable automatic updates
+var broadcastsUpdateInterval = 7200000; // set to 0 to disable automatic updates
+
+</script>
+<style>
+
+body {
+    padding: 0;
+    margin: 0;
+    background: #002129;
+    font-family: sans-serif;
+    overflow-y: scroll;
+}
+
+.user_container {
+    vertical-align: top;
+}
+
+.content_container {
+    display: none;
+}
+
+.content_container.open {
+    display: block;
+}
+
+.user_header {
+    padding: 5px;
+    height: 30px;
+    white-space: nowrap;
+}
+
+.username {
+    cursor: pointer;
+    vertical-align: middle;
+    font-size: 25px;
+    text-decoration: none;
+    vertical-align: middle;
+    display: inline-block;
+    color: rgba(38, 139, 210, 0.2);
+}
+
+.user_container.live .username,
+.user_container.has_broadcasts .username {
+    color: rgba(38, 139, 210, 1);
+}
+.user_container.has_broadcasts .no_broadcasts {
+    display: none;
+}
+
+.username:hover {
+    text-decoration: underline;
+}
+
+.history_container {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 5px;
+    cursor: pointer;
+}
+
+.history_pip {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    margin: 7.5px 2px;
+    background-color: #003300;
+    border-radius: 7.5px;
+}
+
+.history_pip.active {
+    background-color: #ccffcc;
+}
+
+.live_marker {
+    text-decoration: none;
+    vertical-align: middle;
+    margin-right: 10px;
+    background: #002200;
+    border: 1px solid #003300;
+    box-shadow: none;
+    color: #003300;
+    padding: 2px 5px;
+    vertical-align: middle;
+    border-radius: 5px;
+    font-family: consolas, sans-serif;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.user_container.live .live_marker {
+    background: #ccffcc;
+    border: 1px solid #bbffbb;
+    box-shadow: 0px 0px 10px 1px #44ee44;
+    color: green;
+}
+
+.no_broadcasts {
+    display: block;
+    margin-left: 20px;
+    font-weight: bold;
+    color: #B58910;
+    font-size: 20px;
+}
+
+.broadcast_container {
+    vertical-align: top;
+    display: inline-block;
+    padding: 10px;
+    color: #657B83;
+    text-decoration: none;
+}
+
+.broadcast_container:hover {
+    background: #073642;
+}
+
+.broadcast_container .image_container {
+    position: relative;
+    width: 320px;
+}
+
+.broadcast_container img {
+    display: block;
+    width: 320px;
+    height: 240px;
+}
+
+.broadcast_title {
+    width: 320px;
+}
+
+.broadcast_container .new_banner {
+    display: none;
+    font-weight: bold;
+    border-radius: 5px;
+    padding: 1px 3px;
+    position: absolute;
+    bottom: 7px;
+    left: 7px;
+    background: #ccffcc;
+    border: 1px solid #bbffbb;
+    box-shadow: 0px 0px 6px 1px #44ee44;
+    color: green;
+    font-size: 10px;
+}
+
+.broadcast_container.new .new_banner {
+    display: block;
+}
+
+.broadcast_container:visited .broadcast_title {
+    color: #CB4B16;
+}
+
+.broadcast_timestamp {
+    color: #B58910;
+    font-weight: bold;
+    background-color: #252525;
+    border-radius: 7px;
+    padding: 2px 5px;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+}
+
+.broadcast_duration {
+    color: #B58910;
+    font-weight: bold;
+    background-color: #252525;
+    border-radius: 7px;
+    padding: 2px 5px;
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+}
+
+.feedback_box {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid white;
+    width: 200px;
+    padding: 7px;
+    text-align: left;
+    color: #aaa;
+}
+
+.feedback_box a, .feedback_box a:visited {
+    color: rgba(38, 139, 210, 1);
+}
+
+</style>
+</head>
+<body>
+<div class="feedback_box">
+    If you find this useful, you can help me by answering the questions <a target="_blank" href="https://docs.google.com/document/d/1Ud4_cWaE1lNnJpjclkOFzoss-TaYVZMdODZjsrEhZ5E/edit">here</a>
+</div>
+<script type="text/javascript">
+
+var weekdays = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday"
+];
+
+var userContainers = {};
+var userIsLive = {};
+var userLastBroadcast = {};
+var userBroadcasts = {};
+var userPips = {};
+var dayInMs = 1000*60*60*24;
+
+for (var i = 0; i < twitchUsers.length; ++i) {
+    userContainers[twitchUsers[i]] = null;
+    userIsLive[twitchUsers[i]] = false;
+    userLastBroadcast[twitchUsers[i]] = null;
+    userBroadcasts[twitchUsers[i]] = [];
+    userPips[twitchUsers[i]] = [];
+    for (var day = 0; day < numPastDays; ++day) {
+        userPips[twitchUsers[i]][day] = false;
+    }
+}
+
+function addUser(username) {
+    var container = document.createElement("DIV");
+    var header = document.createElement("DIV");
+    var nameContainer = document.createElement("A");
+    var historyContainer = document.createElement("DIV");
+    var liveMarker = document.createElement("A");
+    var contentContainer = document.createElement("DIV");
+    var noBroadcasts = document.createElement("DIV");
+    var inactivePip = document.createElement("DIV");
+
+    container.classList.add("user_container");
+    header.classList.add("user_header");
+    nameContainer.classList.add("username");
+    historyContainer.classList.add("history_container");
+    inactivePip.classList.add("history_pip");
+    liveMarker.classList.add("live_marker");
+    contentContainer.classList.add("content_container");
+    noBroadcasts.classList.add("no_broadcasts");
+
+    historyContainer.addEventListener("click", function() {
+        toggleContent(username);
+    });
+
+    nameContainer.addEventListener("click", function() {
+        toggleContent(username);
+    });
+
+    nameContainer.textContent = username;
+    noBroadcasts.textContent = "No past broadcasts found for " + username + "!";
+    liveMarker.textContent = "LIVE";
+    liveMarker.setAttribute("href", "https://twitch.tv/" + username);
+    liveMarker.setAttribute("target", "_blank");
+
+    for (var i = 0; i < numPastDays; ++i) {
+        historyContainer.appendChild(inactivePip.cloneNode());
+    }
+    contentContainer.appendChild(noBroadcasts);
+    header.appendChild(liveMarker);
+    header.appendChild(historyContainer);
+    header.appendChild(nameContainer);
+    container.appendChild(header);
+    container.appendChild(contentContainer);
+
+    return container;
+}
+
+function toggleContent(username) {
+    var contentContainer = userContainers[username].querySelector(".content_container");
+    contentContainer.classList.toggle("open");
+}
+
+function setLive(username, isLive) {
+    var userContainer = userContainers[username];
+    if (isLive) {
+        userContainer.classList.add("live");
+    } else {
+        userContainer.classList.remove("live");
+    }
+
+    if (Notification.permission === "granted" && userIsLive[username] === false && isLive) {
+        new Notification(username + " just went live!");
+    }
+
+    userIsLive[username] = isLive;
+}
+
+function checkLive(username) {
+    var scriptTag = document.createElement("SCRIPT");
+    scriptTag.setAttribute("type", "text/javascript");
+    var callbackName = "___callback_checkLive_" + username;
+    window[callbackName] = function(apiResult) {
+        setLive(username, apiResult.stream != null);
+        sort();
+    }
+    scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/streams/" + username + "?client_id=tmie0e5s3gq8ygkfc0i2t83i53xkuow&callback=" + callbackName);
+    document.body.appendChild(scriptTag);
+}
+
+function pad(inStr, padChar, length) {
+    var str = "" + inStr;
+    for (var i = 0; i < length - str.length; ++i) {
+        str = padChar + str;
+    }
+    return str;
+}
+
+function datePart(part) {
+    return pad(part, "0", 2);
+}
+
+function formatDate(date) {
+    return weekdays[date.getDay()] + " - " + date.toLocaleString();
+    //return date.toDateString() + " - " + date.toLocaleTimeString();
+    //return date.getFullYear() + "/" + datePart((date.getMonth() + 1)) + "/" + datePart(date.getDate()) + " - " + datePart(date.getHours()) + ":" + datePart(date.getMinutes());
+}
+
+function formatDuration(durationInSeconds) {
+    var hours = Math.floor(durationInSeconds/60/60);
+    var minutes = Math.floor(durationInSeconds/60) % 60;
+    var seconds = durationInSeconds % 60;
+    return datePart(hours) + ":" + datePart(minutes) + ":" + datePart(seconds);
+}
+
+function setBroadcasts(username, broadcasts) {
+    // NOTE(asaf): broadcasts are: [{ title, url, image, timestamp, durationInSeconds }, ...]
+
+    if (broadcasts.length == 0) {
+        userContainers[username].classList.remove("has_broadcasts");
+    } else {
+        userContainers[username].classList.add("has_broadcasts");
+    }
+
+    var contentContainer = userContainers[username].querySelector(".content_container");
+    var newIndex = 0;
+    var oldIndex = 0;
+
+    while (oldIndex < (userBroadcasts[username].length || 0) || newIndex < broadcasts.length) {
+        var comparison = ((userBroadcasts[username][oldIndex] && userBroadcasts[username][oldIndex].timestamp.valueOf()) || 0) - ((broadcasts[newIndex] && broadcasts[newIndex].timestamp.valueOf()) || 0);
+        if (comparison < 0) {
+            var broadcast = createBroadcast(broadcasts[newIndex]);
+            contentContainer.insertBefore(broadcast, ((userBroadcasts[username][oldIndex] && userBroadcasts[username][oldIndex].el) || null));
+            broadcasts[newIndex].el = broadcast;
+            newIndex++;
+        } else if (comparison == 0) {
+            broadcasts[newIndex].el = userBroadcasts[username][oldIndex].el;
+            if (broadcasts[newIndex].durationInSeconds != userBroadcasts[username][oldIndex].durationInSeconds) {
+                broadcasts[newIndex].el.querySelector(".broadcast_duration").textContent = formatDuration(broadcasts[newIndex].durationInSeconds);
+            }
+            if (broadcasts[newIndex].isNew != userBroadcasts[username][oldIndex].isNew) {
+                if (broadcasts[newIndex].isNew) {
+                    broadcasts[newIndex].el.classList.add("new");
+                } else {
+                    broadcasts[newIndex].el.classList.remove("new");
+                }
+            }
+            oldIndex++;
+            newIndex++;
+        } else {
+            contentContainer.removeChild(userBroadcasts[username][oldIndex].el);
+            oldIndex++;
+        }
+    }
+
+    userBroadcasts[username] = broadcasts;
+
+    var pastDays = [];
+    for (var i = 0; i < broadcasts.length; ++i) {
+        var timeAgo = Date.now() - broadcasts[i].timestamp.valueOf();
+        var numDaysAgo = Math.floor(timeAgo / dayInMs);
+        pastDays[numDaysAgo] = true;
+    }
+    setPips(username, pastDays);
+
+    userLastBroadcast[username] = (broadcasts.length > 0 ? broadcasts[0].timestamp : null);
+    sort();
+}
+
+function createBroadcast(broadcast) {
+    var broadcastContainer = document.createElement("A");
+    var imageContainer = document.createElement("DIV");
+    var image = document.createElement("IMG");
+    var timestamp = document.createElement("DIV");
+    var duration = document.createElement("DIV");
+    var title = document.createElement("DIV");
+    var newBanner = document.createElement("DIV");
+
+    broadcastContainer.classList.add("broadcast_container");
+    if (broadcast.isNew) {
+        broadcastContainer.classList.add("new");
+    }
+    imageContainer.classList.add("image_container");
+    title.classList.add("broadcast_title");
+    timestamp.classList.add("broadcast_timestamp");
+    duration.classList.add("broadcast_duration");
+    newBanner.classList.add("new_banner");
+
+    broadcastContainer.setAttribute("href", broadcast.url);
+    broadcastContainer.setAttribute("target", "_blank");
+    image.setAttribute("src", broadcast.image);
+    title.setAttribute("title", broadcast.title);
+    timestamp.setAttribute("title", broadcast.timestamp.toISOString());
+
+    title.textContent = broadcast.title;
+    timestamp.textContent = formatDate(broadcast.timestamp);
+    duration.textContent = formatDuration(broadcast.durationInSeconds);
+    newBanner.textContent = "NEW!";
+
+    imageContainer.appendChild(image);
+    imageContainer.appendChild(timestamp);
+    imageContainer.appendChild(duration);
+    imageContainer.appendChild(newBanner);
+    broadcastContainer.appendChild(imageContainer);
+    broadcastContainer.appendChild(title);
+
+    return broadcastContainer;
+}
+
+function setPips(username, pipStates) {
+    var historyContainer = userContainers[username].querySelector(".history_container");
+    for (var i = 0; i < numPastDays; ++i) {
+        if (userPips[username][i] != pipStates[i]) {
+            historyContainer.childNodes[i].classList.toggle("active", (pipStates[i] ? true : false));
+            userPips[username][i] = pipStates[i];
+        }
+    }
+}
+
+function updateBroadcasts(username) {
+    var scriptTag = document.createElement("SCRIPT");
+    scriptTag.setAttribute("type", "text/javascript");
+    var callbackName = "___callback_updateBroadcasts_" + username;
+    window[callbackName] = function(apiResult) {
+        var broadcasts = [];
+        for (var i = 0; i < apiResult.videos.length; ++i) {
+            var video = apiResult.videos[i]
+            broadcasts.push({
+                title: video.title,
+                timestamp: new Date(video.recorded_at),
+                durationInSeconds: video.length,
+                image: video.preview,
+                url: video.url,
+                isNew: (Date.now() - (new Date(video.recorded_at)).valueOf()) < dayInMs
+            });
+        }
+        setBroadcasts(username, broadcasts);
+    }
+    scriptTag.setAttribute("src", "https://api.twitch.tv/kraken/channels/" + username + "/videos?client_id=tmie0e5s3gq8ygkfc0i2t83i53xkuow&limit=" + maxPastBroadcasts + "&broadcasts=true&callback=" + callbackName);
+    document.body.appendChild(scriptTag);
+}
+
+function compareUsers(a, b) {
+    if (userIsLive[a] == userIsLive[b]) {
+        return (userLastBroadcast[b] || 0) - (userLastBroadcast[a] || 0);
+    } else {
+        if (userIsLive[a]) {
+            return -1;
+        } else {
+            return 1;
+        }
+    }
+}
+
+function sortUser(username) {
+    // This is unstable.
+    var prevIdx = twitchUsers.indexOf(username);
+    twitchUsers.sort(compareUsers);
+    var idx = twitchUsers.indexOf(username);
+    if (prevIdx != idx) {
+        document.body.insertBefore(userContainers[username], userContainers[twitchUsers[idx+1]]);
+    }
+}
+
+function sort() {
+    twitchUsers.sort(compareUsers);
+    for (var i = 0; i < twitchUsers.length; ++i) {
+        document.body.appendChild(userContainers[twitchUsers[i]]);
+    }
+}
+
+function checkLiveAll() {
+    for (var i = 0; i < twitchUsers.length; ++i) {
+        checkLive(twitchUsers[i]);
+    }
+}
+
+function updateBroadcastsAll() {
+    for (var i = 0; i < twitchUsers.length; ++i) {
+        updateBroadcasts(twitchUsers[i]);
+    }
+}
+
+for (var i = 0; i < twitchUsers.length; ++i) {
+    var username = twitchUsers[i];
+    var userContainer = addUser(username);
+    userContainers[username] = userContainer;
+    document.body.appendChild(userContainer);
+    setPips(username, []);
+    checkLive(username);
+    if (maxPastBroadcasts > 0) {
+        updateBroadcasts(username);
+    }
+}
+
+if (liveUpdateInterval > 0) {
+    setInterval(function() {
+        checkLiveAll();
+    }, liveUpdateInterval);
+}
+
+if (maxPastBroadcasts > 0 && broadcastsUpdateInterval > 0) {
+    setInterval(function() {
+        updateBroadcastsAll();
+    }, broadcastsUpdateInterval);
+}
+
+if ("Notification" in window) {
+    if (Notification.permission !== "denied" && Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
+}
+
+</script>
+</body>
+</html>
