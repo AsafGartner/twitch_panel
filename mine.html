@@ -327,6 +327,7 @@ function checkLive(username) {
     scriptTag.setAttribute("type", "text/javascript");
     var callbackName = "___callback_checkLive_" + username;
     window[callbackName] = function(apiResult) {
+        document.body.removeChild(scriptTag);
         setLive(username, apiResult.stream != null);
         sort();
     }
@@ -468,6 +469,7 @@ function updateBroadcasts(username) {
     scriptTag.setAttribute("type", "text/javascript");
     var callbackName = "___callback_updateBroadcasts_" + username;
     window[callbackName] = function(apiResult) {
+        document.body.removeChild(scriptTag);
         var broadcasts = [];
         for (var i = 0; i < apiResult.videos.length; ++i) {
             var video = apiResult.videos[i]
